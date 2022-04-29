@@ -20,6 +20,7 @@ void setup() {
   pinMode(WATER_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(WIND_SPEED_PIN), readWindSpeed, FALLING);
 
+  // Declare all my particle variables
   Particle.variable("RawWind", rawWindDir);
   Particle.variable("RawSpeed", rawWindSpeed);
   Particle.variable("RawWater", rawWater);
@@ -29,22 +30,24 @@ void setup() {
 
 void loop() {
    Update();
+   // Publish all the variables to particle.
    Particle.publish("RawWind", string(rawWindDir));
    Particle.publish("RawSpeed", string(rawWindSpeed));
    Particle.publish("RawWater", string(rawWater));
    Particle.publish("WindSpeed", string(MPHWind));
 }
 
+// Update all the variables. 
 void Update() {
-  rawWindSpeed = analogRead(WIND_DIR_PIN);
-  if (digitalRead(WIND_SPEED_PIN) == LOW) {
-    rawWindSpeed ++;
-  }
+  rawWindDir = analogRead(WIND_DIR_PIN);
   if (digitalRead(WATER_PIN) == LOW) {
     rawWater ++;
   }
+  calcWindSpeed(); 
 }
 
+// Take the raw wind data and make it into miles per hour
+// I mostly just copied chucks code. I'm really not sure how or if it works.
 void calcWindSpeed() {
   windTime = millis() - tempWindTime;
   noInterrupts();
@@ -55,14 +58,20 @@ void calcWindSpeed() {
   MPHWind = ((float)tempWindCount * (float)(windTime / 1000)) * 1.492;
 }
 
+// Reads in the wind speed raw data everytime the sensor fully rotates
 void readWindSpeed() {
+  // Get our current time
   current_wind_event = millis();
+  // This is just for the first time the program runs or when variables overflow.
   if (last_wind_event == 0) {
     last_wind_event = current_wind_event;
   }
+  // Make sure the sensor isn't bouncing and counting twice
   if (current_wind_event >= wind_debounce_timer) {
+    // The thing spun around! Keep track of that!
     windCount++;
-    int period = current_wind_event - last_wind_event;
+    rawWindSpeed++
+    // Reset the timer
     wind_debounce_timer = current_wind_event + 10;
   }
 }
