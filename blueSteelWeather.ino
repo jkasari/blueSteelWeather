@@ -6,10 +6,13 @@
 int rawWindDir = 0;
 int rawWindSpeed = 0;
 int rawWater = 0;
+int windTime = 0;
+int tempWindTime = 0;
 int wind_debounce_timer = 0;
 int last_wind_event = 0;
 int current_wind_event = 0;
-int volatile windCount = 0;
+float volatile windCount = 0;
+float volatile MPHWind = 0; 
 
 void setup() {
   pinMode(WIND_DIR_PIN, INPUT);
@@ -17,17 +20,19 @@ void setup() {
   pinMode(WATER_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(WIND_SPEED_PIN), readWindSpeed, FALLING);
 
-  //Particle.variable("RawWind", rawWindDir);
-  //Particle.variable("RawSpeed", rawWindSpeed);
-  //Particle.variable("RawWater", rawWater);
+  Particle.variable("RawWind", rawWindDir);
+  Particle.variable("RawSpeed", rawWindSpeed);
+  Particle.variable("RawWater", rawWater);
+  Particle.variable("WindSpeed", MPHWind);
 
 }
 
 void loop() {
    Update();
-   //Particle.publish("RawWind", string(rawWindDir));
-   //Particle.publish("RawSpeed", string(rawWindSpeed));
-   //Particle.publish("RawWater", string(rawWater));
+   Particle.publish("RawWind", string(rawWindDir));
+   Particle.publish("RawSpeed", string(rawWindSpeed));
+   Particle.publish("RawWater", string(rawWater));
+   Particle.publish("WindSpeed", string(MPHWind));
 }
 
 void Update() {
@@ -40,6 +45,16 @@ void Update() {
   }
 }
 
+void calcWindSpeed() {
+  windTime = millis() - tempWindTime;
+  noInterrupts();
+  tempWindTime = millis();
+  int tempWindCount = windCount;
+  windCount = 0;
+  interrupts();
+  MPHWind = ((float)tempWindCount * (float)(windTime / 1000)) * 1.492;
+}
+
 void readWindSpeed() {
   current_wind_event = millis();
   if (last_wind_event == 0) {
@@ -47,7 +62,6 @@ void readWindSpeed() {
   }
   if (current_wind_event >= wind_debounce_timer) {
     windCount++;
-    
     int period = current_wind_event - last_wind_event;
     wind_debounce_timer = current_wind_event + 10;
   }
